@@ -4,10 +4,11 @@
 通过 data_models 读取软件源配置、apt_core 构建命令、runner 异步执行，
 支持按架构 + 产品线 + 版本选择，以及按文件名 / 库名搜索软件包。
 """
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QAbstractItemView, QComboBox, QFileDialog, QFormLayout, QGroupBox,
     QHBoxLayout, QLabel, QLineEdit, QListWidget, QMainWindow, QMessageBox,
-    QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
+    QPlainTextEdit, QPushButton, QSizePolicy, QSplitter, QVBoxLayout, QWidget,
 )
 
 from . import APP_TITLE, apt_core, data_models
@@ -115,15 +116,29 @@ class MainWindow(QMainWindow):
         search_v.addLayout(search_row)
         self.search_list = QListWidget()
         self.search_list.setSelectionMode(QAbstractItemView.SingleSelection)
-        search_v.addWidget(self.search_list)
-        root.addWidget(search_box)
+        search_v.addWidget(self.search_list, 1)
+        search_box.setMinimumHeight(160)
+        search_box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
 
-        # 日志
-        root.addWidget(QLabel("运行日志："))
+        # 日志区容器
+        log_container = QWidget()
+        log_v = QVBoxLayout(log_container)
+        log_v.setContentsMargins(0, 0, 0, 0)
+        log_v.addWidget(QLabel("运行日志："))
         self.log_box = QPlainTextEdit()
         self.log_box.setReadOnly(True)
         self.log_box.setMaximumBlockCount(5000)
-        root.addWidget(self.log_box, 1)
+        log_v.addWidget(self.log_box, 1)
+        log_container.setMinimumHeight(120)
+
+        # 搜索区与日志区放入垂直分割条：随窗口自动伸缩，中间可拖动调整比例
+        splitter = QSplitter(Qt.Vertical)
+        splitter.addWidget(search_box)
+        splitter.addWidget(log_container)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 2)
+        splitter.setChildrenCollapsible(False)
+        root.addWidget(splitter, 1)
 
     # ===================== 下拉联动 =====================
     def _update_groups(self):

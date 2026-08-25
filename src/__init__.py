@@ -7,4 +7,4 @@
 
 APP_NAME = "kylin-pkg-tool"
 APP_TITLE = "银河麒麟多架构包下载工具"
-__version__ = "1.1"
+__version__ = "1.2"

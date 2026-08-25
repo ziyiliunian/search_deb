@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 
 APP_NAME="kylin-pkg-tool"
 INSTALL_DIR="search_deb"
-VERSION="${1:-1.1}"
+VERSION="${1:-1.2}"
 ARCH="all"
 PKG="${APP_NAME}_${VERSION}_${ARCH}.deb"
 OUT_DIR="dist"
@@ -43,8 +43,8 @@ mkdir -p "$DOC_DIR"
 cat > "$DOC_DIR/changelog" <<EOF
 ${APP_NAME} (${VERSION}) unstable; urgency=medium
 
+  * 搜索区与运行日志区改为可拖动分割布局，随窗口自动伸缩
   * 修复按库文件搜索时错误输出被误识别为包名的问题
-  * 搜索支持按目标架构过滤，新增文件名关键词提取回退与一键更新文件索引
   * 默认安装路径为 /opt/${INSTALL_DIR}
 
  -- KylinPkgTool Developers <dev@localhost>  $(date -R)
