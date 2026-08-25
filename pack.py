@@ -3,7 +3,7 @@
 """快速打包脚本（跨平台）。
 
 - 重新生成应用图标；
-- 始终生成源码压缩包 dist/kylin-pkg-tool_<version>_src.zip（可传输到麒麟系统）；
+- 始终生成源码压缩包 dist/KylinPkgTool_<version>_src.zip（可传输到麒麟系统）；
 - 若本机存在 dpkg-deb（Linux），自动调用 build.sh 构建 .deb 安装包。
 
 用法:
@@ -17,7 +17,7 @@ import sys
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-APP_NAME = "kylin-pkg-tool"
+APP_NAME = "KylinPkgTool"
 
 
 def read_version():

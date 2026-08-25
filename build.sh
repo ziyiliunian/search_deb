@@ -6,7 +6,9 @@
 set -e
 cd "$(dirname "$0")"
 
-APP_NAME="kylin-pkg-tool"
+APP_NAME="KylinPkgTool"
+# Debian 包名按规范强制小写（dpkg 内部 Package 字段）
+DEB_NAME="kylinpkgtool"
 INSTALL_DIR="search_deb"
 VERSION="${1:-1.2}"
 ARCH="all"
@@ -38,10 +40,10 @@ cp -r src "$PKGROOT/opt/${INSTALL_DIR}/src"
 find "$PKGROOT/opt/${INSTALL_DIR}" -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 
 # 生成 Debian changelog（打包必要文件，gzip -9 压缩）
-DOC_DIR="$PKGROOT/usr/share/doc/${APP_NAME}"
+DOC_DIR="$PKGROOT/usr/share/doc/${DEB_NAME}"
 mkdir -p "$DOC_DIR"
 cat > "$DOC_DIR/changelog" <<EOF
-${APP_NAME} (${VERSION}) unstable; urgency=medium
+${DEB_NAME} (${VERSION}) unstable; urgency=medium
 
   * 搜索区与运行日志区改为可拖动分割布局，随窗口自动伸缩
   * 修复按库文件搜索时错误输出被误识别为包名的问题

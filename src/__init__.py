@@ -5,6 +5,6 @@
 支持按文件名 / 库名搜索包含目标文件的软件包。
 """
 
-APP_NAME = "kylin-pkg-tool"
+APP_NAME = "KylinPkgTool"
 APP_TITLE = "银河麒麟多架构包下载工具"
 __version__ = "1.2"

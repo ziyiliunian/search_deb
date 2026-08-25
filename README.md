@@ -34,18 +34,18 @@
 ### 安装 deb 包
 
 ```bash
-sudo dpkg -i kylin-pkg-tool_1.0_all.deb
+sudo dpkg -i KylinPkgTool_1.2_all.deb
 # 若提示依赖未满足，执行：
 sudo apt-get install -f
 ```
 
-安装后在应用菜单搜索 "KylinPkgTool" 或 "银河麒麟" 即可启动，或在终端运行 `kylin-pkg-tool`。
+安装后在应用菜单搜索 "KylinPkgTool" 或 "银河麒麟" 即可启动，或在终端运行 `KylinPkgTool`。
 
 ### 从源码运行
 
 ```bash
 pip install PyQt5
-python3 src/main.py
+python3 -m src.main
 ```
 
 ### 使用步骤
@@ -79,7 +79,7 @@ python3 src/main.py
 ## 项目结构
 
 ```
-kylin-pkg-tool/
+search_deb/
 ├── src/                        # 源代码
 │   ├── __init__.py             # 包元信息（应用名、版本）
 │   ├── main.py                 # 主入口（QApplication）
@@ -116,10 +116,10 @@ python pack.py            # 生成源码压缩包；Linux 上同时构建 deb
 
 ```bash
 ./build.sh 1.0
-sudo dpkg -i dist/kylin-pkg-tool_1.0_all.deb
+sudo dpkg -i dist/KylinPkgTool_1.2_all.deb
 ```
 
-程序默认安装到 `/opt/search_deb`，启动器为 `/usr/bin/kylin-pkg-tool`。
+程序默认安装到 `/opt/search_deb`，启动器为 `/usr/bin/KylinPkgTool`。
 
 ## 技术栈
 

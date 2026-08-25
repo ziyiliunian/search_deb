@@ -12,57 +12,40 @@ packaging/
 │   └── postrm         # 卸载后脚本（清理桌面缓存）
 ├── usr/
 │   ├── bin/
-│   │   └── kylin-pkg-tool   # 启动器脚本（放到 /usr/bin）
+│   │   └── KylinPkgTool   # 启动器脚本（放到 /usr/bin）
 │   └── share/
 │       ├── applications/
-│       │   └── kylin-pkg-tool.desktop       # 桌面快捷方式
+│       │   └── KylinPkgTool.desktop       # 桌面快捷方式
+│       ├── doc/kylinpkgtool/
+│       │   └── copyright                  # 版权信息（changelog.gz 由 build.sh 生成）
 │       └── icons/hicolor/256x256/apps/
-│           └── kylin-pkg-tool.png           # 应用图标
+│           └── KylinPkgTool.png           # 应用图标
 └── README.md          # 本文件
 ```
 
-> 注意：`packaging/opt/kylin-pkg-tool/` 目录下的 Python 源码由根目录 `build.sh`
-> 在打包时自动复制生成，不需手工维护。程序安装后位于 `/opt/kylin-pkg-tool`。
+> 注意：deb 内部 `Package` 字段按 Debian 规范使用小写 `kylinpkgtool`（dpkg 不允许大写包名），
+> 而安装后的可执行文件、桌面项、图标与 deb 文件名均为 `KylinPkgTool`。
+> 程序源码在打包时由根目录 `build.sh` 自动复制到 `opt/search_deb/`，安装后位于 `/opt/search_deb`。
 
 ## 依赖
 
 * `python3` (>= 3.8)
 * `python3-pyqt5`（PyQt5 图形界面）
 
-## 手动构建 deb 包
+## 构建 deb 包
+
+直接运行根目录的 `build.sh` 一键完成（复制源码、生成图标与 changelog、构建）：
 
 ```bash
-# 1. 复制源码到打包目录
-mkdir -p packaging/opt/kylin-pkg-tool/src
-cp -r src/* packaging/opt/kylin-pkg-tool/src/
-
-# 2. 生成应用图标
-python3 tools/gen_icon.py packaging/usr/share/icons/hicolor/256x256/apps/kylin-pkg-tool.png
-
-# 3. 设置脚本权限
-chmod 755 packaging/DEBIAN/postinst packaging/DEBIAN/postrm
-chmod 755 packaging/usr/bin/kylin-pkg-tool
-
-# 4. 构建 deb（需 dpkg-dev）
-dpkg-deb --build --root-owner-group packaging kylin-pkg-tool_1.0.0_all.deb
-```
-
-或直接运行根目录的 `build.sh` 一键完成以上步骤：
-
-```bash
-./build.sh 1.0.0
+./build.sh 1.2
 ```
 
 ## 安装与卸载
 
 ```bash
-sudo dpkg -i kylin-pkg-tool_1.0.0_all.deb
+sudo dpkg -i dist/KylinPkgTool_1.2_all.deb
 sudo apt-get install -f   # 若依赖未满足，自动修复
 
-# 卸载
-sudo dpkg -r kylin-pkg-tool
+# 卸载（注意使用 dpkg 内部小写包名）
+sudo dpkg -r kylinpkgtool
 ```
-
-## 配置说明
-
-打包前请按需修改 `DEBIAN/control` 中的 `Maintainer` 字段（当前为占位符）。

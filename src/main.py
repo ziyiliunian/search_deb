@@ -21,7 +21,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_TITLE)
-    app.setDesktopFileName("kylin-pkg-tool")
+    app.setDesktopFileName("KylinPkgTool")
 
     win = MainWindow()
     win.show()
