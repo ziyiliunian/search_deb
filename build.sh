@@ -10,7 +10,7 @@ APP_NAME="kylinpkgtool"
 # Debian 包名按规范强制小写（dpkg 内部 Package 字段）
 DEB_NAME="kylinpkgtool"
 INSTALL_DIR="kylinpkgtool"
-VERSION="${1:-1.2}"
+VERSION="${1:-1.3}"
 ARCH="all"
 PKG="${APP_NAME}_${VERSION}_${ARCH}.deb"
 OUT_DIR="dist"
@@ -45,8 +45,8 @@ mkdir -p "$DOC_DIR"
 cat > "$DOC_DIR/changelog" <<EOF
 ${DEB_NAME} (${VERSION}) unstable; urgency=medium
 
-  * 搜索区与运行日志区改为可拖动分割布局，随窗口自动伸缩
-  * 修复按库文件搜索时错误输出被误识别为包名的问题
+  * 搜索结果框增加空态背景提示（安装 apt-file 建议直接显示在列表背景）
+  * 搜索回退结果按包名过滤，排除描述匹配噪音
   * 默认安装路径为 /opt/${INSTALL_DIR}
 
  -- KylinPkgTool Developers <dev@localhost>  $(date -R)

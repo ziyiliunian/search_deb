@@ -5,6 +5,7 @@
 支持按架构 + 产品线 + 版本选择，以及按文件名 / 库名搜索软件包。
 """
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor, QPainter
 from PyQt5.QtWidgets import (
     QAbstractItemView, QComboBox, QFileDialog, QFormLayout, QGroupBox,
     QHBoxLayout, QLabel, QLineEdit, QListWidget, QMainWindow, QMessageBox,
@@ -16,7 +17,39 @@ from .runner import CommandWorker
 from .utils import get_desktop_path
 
 
+class SearchListWidget(QListWidget):
+    """带空态背景提示的搜索结果列表：无内容时居中显示提示文字。"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._placeholder = ""
+
+    def set_placeholder(self, text):
+        self._placeholder = text
+        self.viewport().update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.count() == 0 and self._placeholder:
+            painter = QPainter(self.viewport())
+            painter.setPen(QColor(140, 140, 140))
+            rect = self.viewport().rect().adjusted(16, 16, -16, -16)
+            painter.drawText(
+                rect, Qt.AlignCenter | Qt.TextWordWrap, self._placeholder
+            )
+            painter.end()
+
+
 class MainWindow(QMainWindow):
+    # 搜索结果框空态背景文案
+    PLACEHOLDER_DEFAULT = "输入文件名或库名后点击「搜索」"
+    PLACEHOLDER_SEARCHING = "正在搜索 ..."
+    PLACEHOLDER_NOT_FOUND = (
+        "未找到匹配的软件包\n\n"
+        "建议安装 apt-file 获得精确的文件→包反查：\n"
+        "sudo apt-get install apt-file\n"
+        "安装后点击「更新文件索引」按钮"
+    )
     def __init__(self):
         super().__init__()
         self.setWindowTitle(APP_TITLE)
@@ -114,8 +147,9 @@ class MainWindow(QMainWindow):
         search_row.addWidget(self.btn_use_pkg)
         search_row.addWidget(self.btn_update_index)
         search_v.addLayout(search_row)
-        self.search_list = QListWidget()
+        self.search_list = SearchListWidget()
         self.search_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.search_list.set_placeholder(self.PLACEHOLDER_DEFAULT)
         search_v.addWidget(self.search_list, 1)
         search_box.setMinimumHeight(160)
         search_box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
@@ -199,6 +233,7 @@ class MainWindow(QMainWindow):
         self.log_box.clear()
         self.pkg_version_combo.clear()
         self.search_list.clear()
+        self.search_list.set_placeholder(self.PLACEHOLDER_DEFAULT)
 
     # ===================== 异步执行封装 =====================
     def run_single(self, cmd, privileged, callback):
@@ -428,6 +463,7 @@ class MainWindow(QMainWindow):
             return
         self._search_kw = kw
         self.search_list.clear()
+        self.search_list.set_placeholder(self.PLACEHOLDER_SEARCHING)
         self.log("=" * 60)
         self.log("按文件/库名搜索：{}".format(kw))
         self.log("=" * 60)
@@ -456,8 +492,16 @@ class MainWindow(QMainWindow):
                 return
             lower = output.lower()
             if code == 127 or "not found" in lower:
+                self.search_list.set_placeholder(
+                    "建议安装 apt-file 以获得精确的文件→包反查：\n\n"
+                    "sudo apt-get install apt-file\n\n"
+                    "安装后点击「更新文件索引」按钮，再重新搜索"
+                )
                 self.log("⚠️ 未安装 apt-file，可执行：sudo apt-get install apt-file")
             elif "cache is empty" in lower or "apt-file update" in lower:
+                self.search_list.set_placeholder(
+                    "apt-file 索引为空\n\n请点击「更新文件索引」按钮\n或执行：sudo apt-file update"
+                )
                 self.log("⚠️ apt-file 索引为空，可点击「更新文件索引」或执行：sudo apt-file update")
             else:
                 self.log("⚠️ apt-file 搜索失败（返回码 {}）".format(code))
@@ -510,9 +554,11 @@ class MainWindow(QMainWindow):
     def _show_search_results(self, pkgs):
         self.search_list.clear()
         if not pkgs:
+            self.search_list.set_placeholder(self.PLACEHOLDER_NOT_FOUND)
             self.log("\n❌ 未找到匹配的软件包")
             self.log("💡 提示：apt-file 需先执行 `apt-file update` 建立文件索引；也可尝试更短的关键词")
             return
+        self.search_list.set_placeholder("")
         self.search_list.addItems(pkgs)
         self.log("\n✅ 找到 {} 个候选包：".format(len(pkgs)))
         for p in pkgs:
