@@ -12,20 +12,19 @@ packaging/
 │   └── postrm         # 卸载后脚本（清理桌面缓存）
 ├── usr/
 │   ├── bin/
-│   │   └── KylinPkgTool   # 启动器脚本（放到 /usr/bin）
+│   │   └── kylinpkgtool   # 启动器脚本（放到 /usr/bin）
 │   └── share/
 │       ├── applications/
-│       │   └── KylinPkgTool.desktop       # 桌面快捷方式
+│       │   └── kylinpkgtool.desktop       # 桌面快捷方式
 │       ├── doc/kylinpkgtool/
 │       │   └── copyright                  # 版权信息（changelog.gz 由 build.sh 生成）
 │       └── icons/hicolor/256x256/apps/
-│           └── KylinPkgTool.png           # 应用图标
+│           └── kylinpkgtool.png           # 应用图标
 └── README.md          # 本文件
 ```
 
-> 注意：deb 内部 `Package` 字段按 Debian 规范使用小写 `kylinpkgtool`（dpkg 不允许大写包名），
-> 而安装后的可执行文件、桌面项、图标与 deb 文件名均为 `KylinPkgTool`。
-> 程序源码在打包时由根目录 `build.sh` 自动复制到 `opt/search_deb/`，安装后位于 `/opt/search_deb`。
+> 注意：deb 内部 `Package` 字段与可执行文件、桌面项、图标、deb 文件名统一为小写 `kylinpkgtool`。
+> 程序源码在打包时由根目录 `build.sh` 自动复制到 `opt/kylinpkgtool/`，安装后位于 `/opt/kylinpkgtool`。
 
 ## 依赖
 
@@ -43,7 +42,7 @@ packaging/
 ## 安装与卸载
 
 ```bash
-sudo dpkg -i dist/KylinPkgTool_1.2_all.deb
+sudo dpkg -i dist/kylinpkgtool_1.2_all.deb
 sudo apt-get install -f   # 若依赖未满足，自动修复
 
 # 卸载（注意使用 dpkg 内部小写包名）

@@ -6,7 +6,7 @@
 - **工作流**：选架构 → 选产品线/版本 → `dpkg --add-architecture` 启用架构 → 写入 `/etc/apt/sources.list.d/kylin-tool-selected.list`（+ preferences）→ `apt update` → `apt-cache policy` 查版本 → `apt download` 下载
 - **附加功能**：`apt-file`/`apt-cache` 按文件名/库名反查包
 - **执行模型**：`CommandWorker`(QThread) + `pkexec` 提权，命令经 `shell=True` 执行
-- **打包**：`pack.py` / `build.sh` 生成 deb（源码直接拷贝到 `/opt/search_deb`）
+- **打包**：`pack.py` / `build.sh` 生成 deb（源码直接拷贝到 `/opt/kylinpkgtool`）
 
 ---
 

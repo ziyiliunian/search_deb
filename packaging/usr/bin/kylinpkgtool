@@ -1,4 +1,4 @@
 #!/bin/bash
 # KylinPkgTool 启动器
 # 使用模块方式运行（src 内为相对导入），工作目录设为安装目录
-cd /opt/search_deb && exec python3 -m src.main "$@"
+cd /opt/kylinpkgtool && exec python3 -m src.main "$@"

@@ -480,9 +480,15 @@ class MainWindow(QMainWindow):
 
     def _on_fallback_done(self, code, output):
         if code == 0:
+            term = self._fallback_terms[self._fallback_idx].lower()
             for p in apt_core.AptManager.parse_search_packages(output):
-                if p not in self._fallback_pkgs:
+                # 仅保留包名含关键词的结果，过滤描述匹配引入的噪音
+                if term in p.lower() and p not in self._fallback_pkgs:
                     self._fallback_pkgs.append(p)
+        # 已有结果或关键词用尽则停止，避免更宽泛的关键词引入大量无关包
+        if self._fallback_pkgs or self._fallback_idx + 1 >= len(self._fallback_terms):
+            self._show_search_results(self._fallback_pkgs)
+            return
         self._fallback_idx += 1
         self._run_next_fallback()
 

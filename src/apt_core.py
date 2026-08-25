@@ -104,10 +104,13 @@ class AptManager:
     def extract_search_terms(keyword):
         """从库/文件名提取候选搜索关键词（供 apt-cache search 回退使用）。
 
-        例: libBLT.2.5.so.8.6 -> ["BLT.2.5", "BLT"]
-            libssl.so.3       -> ["ssl"]
+        例: libBLT.2.5.so.8.6          -> ["BLT.2.5", "BLT"]
+            libssl.so.3                -> ["ssl"]
+            /usr/lib/libhandle.so.1.0.3 -> ["handle"]
         """
         base = keyword.strip()
+        # 完整路径输入时取文件名部分（兼容 / 与 \ 分隔符）
+        base = base.replace("\\", "/").rsplit("/", 1)[-1]
         if base.lower().startswith("lib"):
             base = base[3:]
         if ".so" in base:

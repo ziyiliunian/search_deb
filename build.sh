@@ -2,14 +2,14 @@
 # KylinPkgTool Debian 打包脚本
 # 用法: ./build.sh [版本号]
 #   默认版本 1.0；可传参覆盖，如 ./build.sh 1.0.1
-#   默认安装路径 /opt/search_deb
+#   默认安装路径 /opt/kylinpkgtool
 set -e
 cd "$(dirname "$0")"
 
-APP_NAME="KylinPkgTool"
+APP_NAME="kylinpkgtool"
 # Debian 包名按规范强制小写（dpkg 内部 Package 字段）
 DEB_NAME="kylinpkgtool"
-INSTALL_DIR="search_deb"
+INSTALL_DIR="kylinpkgtool"
 VERSION="${1:-1.2}"
 ARCH="all"
 PKG="${APP_NAME}_${VERSION}_${ARCH}.deb"
@@ -33,7 +33,7 @@ cp -r packaging/* "$PKGROOT/"
 # 骨架说明文档不进入 deb
 rm -f "$PKGROOT/README.md"
 
-# 复制源码（保持 src/ 包结构，启动器通过 /opt/search_deb/src 以模块方式导入）
+# 复制源码（保持 src/ 包结构，启动器通过 /opt/kylinpkgtool/src 以模块方式导入）
 mkdir -p "$PKGROOT/opt/${INSTALL_DIR}"
 cp -r src "$PKGROOT/opt/${INSTALL_DIR}/src"
 # 排除 Python 字节码缓存，保持包内干净

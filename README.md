@@ -34,12 +34,12 @@
 ### 安装 deb 包
 
 ```bash
-sudo dpkg -i KylinPkgTool_1.2_all.deb
+sudo dpkg -i kylinpkgtool_1.2_all.deb
 # 若提示依赖未满足，执行：
 sudo apt-get install -f
 ```
 
-安装后在应用菜单搜索 "KylinPkgTool" 或 "银河麒麟" 即可启动，或在终端运行 `KylinPkgTool`。
+安装后在应用菜单搜索 "KylinPkgTool" 或 "银河麒麟" 即可启动，或在终端运行 `kylinpkgtool`。
 
 ### 从源码运行
 
@@ -116,10 +116,10 @@ python pack.py            # 生成源码压缩包；Linux 上同时构建 deb
 
 ```bash
 ./build.sh 1.0
-sudo dpkg -i dist/KylinPkgTool_1.2_all.deb
+sudo dpkg -i dist/kylinpkgtool_1.2_all.deb
 ```
 
-程序默认安装到 `/opt/search_deb`，启动器为 `/usr/bin/KylinPkgTool`。
+程序默认安装到 `/opt/kylinpkgtool`，启动器为 `/usr/bin/kylinpkgtool`。
 
 ## 技术栈
 

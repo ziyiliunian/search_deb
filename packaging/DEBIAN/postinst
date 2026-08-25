@@ -3,7 +3,7 @@ set -e
 
 # 编译字节码，加快首次启动
 if command -v python3 >/dev/null 2>&1; then
-    python3 -m compileall -q /opt/search_deb/src 2>/dev/null || true
+    python3 -m compileall -q /opt/kylinpkgtool/src 2>/dev/null || true
 fi
 
 # 刷新桌面缓存
