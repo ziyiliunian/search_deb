@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Kylin Package Tool
+Name[zh_CN]=银河麒麟多架构包下载工具
+Comment=Download Debian packages by architecture and version
+Comment[zh_CN]=按架构与版本切换软件源并下载 .deb 软件包
+Exec=kylin-pkg-tool
+Icon=kylin-pkg-tool
+Terminal=false
+Categories=System;Utility;
+StartupWMClass=kylin-pkg-tool
