@@ -128,3 +128,9 @@ sudo dpkg -i dist/kylinpkgtool_1.2_all.deb
 - 系统命令 `apt` / `dpkg` / `apt-file`（软件包操作与文件搜索）
 - `pkexec`（提权）
 - `dpkg-deb`（deb 打包）
+
+## 联系方式
+
+如有问题或建议，欢迎联系作者沟通：
+
+- 邮箱：316878142@qq.com
