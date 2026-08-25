@@ -1,7 +1,7 @@
 #!/bin/bash
 # KylinPkgTool Debian 打包脚本
 # 用法: ./build.sh [版本号]
-#   默认版本 1.0；可传参覆盖，如 ./build.sh 1.0.1
+#   默认版本 1.4；可传参覆盖，如 ./build.sh 1.4.1
 #   默认安装路径 /opt/kylinpkgtool
 set -e
 cd "$(dirname "$0")"
@@ -10,11 +10,13 @@ APP_NAME="kylinpkgtool"
 # Debian 包名按规范强制小写（dpkg 内部 Package 字段）
 DEB_NAME="kylinpkgtool"
 INSTALL_DIR="kylinpkgtool"
-VERSION="${1:-1.3}"
+VERSION="${1:-1.4}"
 ARCH="all"
 PKG="${APP_NAME}_${VERSION}_${ARCH}.deb"
 OUT_DIR="dist"
-PKGROOT="build/pkgroot"
+BUILD_DIR="build"
+# 每次构建使用独立目录，避免破坏性清理及并行构建冲突
+PKGROOT="${BUILD_DIR}/pkgroot-${VERSION}-$$"
 
 echo "=== KylinPkgTool Debian Build (v${VERSION}) ==="
 
@@ -24,8 +26,7 @@ if ! command -v dpkg-deb >/dev/null 2>&1; then
     exit 1
 fi
 
-# 清理旧构建
-rm -rf "$PKGROOT"
+# 创建本次独立构建目录
 mkdir -p "$PKGROOT"
 
 # 以 packaging/ 为骨架复制到构建根
@@ -45,25 +46,34 @@ mkdir -p "$DOC_DIR"
 cat > "$DOC_DIR/changelog" <<EOF
 ${DEB_NAME} (${VERSION}) unstable; urgency=medium
 
-  * 搜索结果框增加空态背景提示（安装 apt-file 建议直接显示在列表背景）
-  * 搜索回退结果按包名过滤，排除描述匹配噪音
+  * 按更新后的 Excel 重新生成软件源与 apt preferences 数据
+  * 增加多尺寸 hicolor/pixmaps 图标并刷新图标缓存
+  * 新增 Excel 处理脚本与处理逻辑说明文档
   * 默认安装路径为 /opt/${INSTALL_DIR}
 
  -- KylinPkgTool Developers <dev@localhost>  $(date -R)
 EOF
 gzip -9 -n "$DOC_DIR/changelog"
 
-# 生成图标（始终重新绘制，确保设计生效；纯标准库，无需 PIL/PyQt5）
-ICON="$PKGROOT/usr/share/icons/hicolor/256x256/apps/${APP_NAME}.png"
-mkdir -p "$(dirname "$ICON")"
-echo "生成应用图标..."
-python3 tools/gen_icon.py "$ICON"
+# 生成多尺寸 hicolor 图标，兼容 UKUI/麒麟应用菜单、桌面与任务栏
+# gen_icon.py 第二个参数为尺寸；同时提供 /usr/share/pixmaps 兼容入口
+ICON_SIZES="16 24 32 48 64 128 256"
+echo "生成多尺寸应用图标..."
+for SIZE in $ICON_SIZES; do
+    ICON="$PKGROOT/usr/share/icons/hicolor/${SIZE}x${SIZE}/apps/${APP_NAME}.png"
+    mkdir -p "$(dirname "$ICON")"
+    python3 tools/gen_icon.py "$ICON" "$SIZE"
+done
+PIXMAP="$PKGROOT/usr/share/pixmaps/${APP_NAME}.png"
+mkdir -p "$(dirname "$PIXMAP")"
+cp "$PKGROOT/usr/share/icons/hicolor/256x256/apps/${APP_NAME}.png" "$PIXMAP"
 
 # 设置权限
 chmod 755 "$PKGROOT/DEBIAN/postinst" "$PKGROOT/DEBIAN/postrm"
 chmod 755 "$PKGROOT/usr/bin/${APP_NAME}"
 chmod 644 "$PKGROOT/usr/share/applications/${APP_NAME}.desktop"
-chmod 644 "$ICON"
+find "$PKGROOT/usr/share/icons/hicolor" -type f -name "${APP_NAME}.png" -exec chmod 644 {} +
+chmod 644 "$PIXMAP"
 chmod 644 "$DOC_DIR/changelog.gz"
 [ -f "$DOC_DIR/copyright" ] && chmod 644 "$DOC_DIR/copyright"
 

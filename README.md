@@ -89,7 +89,8 @@ search_deb/
 │   ├── runner.py               # 异步命令执行（QThread）
 │   └── utils.py                # 通用工具（桌面路径等）
 ├── tools/
-│   └── gen_icon.py             # 图标生成脚本（纯标准库）
+│   ├── gen_icon.py             # 多尺寸图标生成脚本（纯标准库）
+│   └── excel_to_data_models.py # 从 Excel 生成软件源数据模型
 ├── packaging/                  # deb 打包配置文件
 │   ├── DEBIAN/                 # control / postinst / postrm
 │   └── usr/                    # 启动器、desktop、图标
@@ -102,7 +103,13 @@ search_deb/
 
 ## 数据来源
 
-软件源数据来自「主线版本对应源地址.xlsx」的「外网源」工作表，由脚本解析生成 `src/data_models.py`。如需更新源列表，请更新 Excel 后重新运行生成脚本。
+软件源数据来自「主线版本对应源地址.xlsx」的「外网源」工作表。更新 Excel 后运行：
+
+```bash
+python3 tools/excel_to_data_models.py
+```
+
+脚本会重新生成 `src/data_models.py`。详细规则见 [`docs/excel-processing.md`](docs/excel-processing.md)。
 
 ## 打包为 deb
 
@@ -115,8 +122,8 @@ python pack.py            # 生成源码压缩包；Linux 上同时构建 deb
 或使用完整构建脚本：
 
 ```bash
-./build.sh 1.0
-sudo dpkg -i dist/kylinpkgtool_1.2_all.deb
+./build.sh 1.4
+sudo dpkg -i dist/kylinpkgtool_1.4_all.deb
 ```
 
 程序默认安装到 `/opt/kylinpkgtool`，启动器为 `/usr/bin/kylinpkgtool`。

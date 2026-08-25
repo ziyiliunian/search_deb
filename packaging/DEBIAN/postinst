@@ -6,9 +6,14 @@ if command -v python3 >/dev/null 2>&1; then
     python3 -m compileall -q /opt/kylinpkgtool/src 2>/dev/null || true
 fi
 
-# 刷新桌面缓存
+# 刷新桌面与图标缓存（兼容 UKUI/GNOME 等桌面环境）
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database -q /usr/share/applications 2>/dev/null || true
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -q -f -t /usr/share/icons/hicolor 2>/dev/null || true
+elif command -v update-icon-caches >/dev/null 2>&1; then
+    update-icon-caches /usr/share/icons/hicolor 2>/dev/null || true
 fi
 
 exit 0

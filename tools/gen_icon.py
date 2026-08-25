@@ -4,7 +4,7 @@
 
 设计：蓝底圆角方块 + 同心圆环（目标）+ 白色向下箭头与托盘（下载符号）。
 
-用法: python3 tools/gen_icon.py <输出路径>
+用法: python3 tools/gen_icon.py <输出路径> [尺寸]
 """
 import math
 import struct
@@ -139,6 +139,9 @@ def render(path, size=256, ss=4):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法: python3 tools/gen_icon.py <输出路径>")
+        print("用法: python3 tools/gen_icon.py <输出路径> [尺寸]")
         sys.exit(1)
-    render(sys.argv[1])
+    icon_size = int(sys.argv[2]) if len(sys.argv) > 2 else 256
+    if icon_size <= 0:
+        raise ValueError("图标尺寸必须为正整数")
+    render(sys.argv[1], icon_size)
