@@ -99,15 +99,19 @@ class MainWindow(QMainWindow):
         search_v = QVBoxLayout(search_box)
         search_row = QHBoxLayout()
         self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("例如：libssl.so.3 或 libssl")
+        self.search_edit.setPlaceholderText("例如：libBLT.2.5.so.8.6、libssl.so.3 或库名关键词")
         self.search_edit.returnPressed.connect(self.search_files)
         self.btn_search = QPushButton("搜索")
         self.btn_search.clicked.connect(self.search_files)
         self.btn_use_pkg = QPushButton("使用选中包查询版本")
         self.btn_use_pkg.clicked.connect(self.use_selected_package)
+        self.btn_update_index = QPushButton("更新文件索引")
+        self.btn_update_index.setToolTip("更新 apt-file 文件索引（需要管理员权限），搜索不到文件时先点这里")
+        self.btn_update_index.clicked.connect(self.update_file_index)
         search_row.addWidget(self.search_edit)
         search_row.addWidget(self.btn_search)
         search_row.addWidget(self.btn_use_pkg)
+        search_row.addWidget(self.btn_update_index)
         search_v.addLayout(search_row)
         self.search_list = QListWidget()
         self.search_list.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -167,6 +171,8 @@ class MainWindow(QMainWindow):
         for b in self._action_buttons:
             b.setEnabled(not busy)
         self.btn_search.setEnabled(not busy)
+        self.btn_use_pkg.setEnabled(not busy)
+        self.btn_update_index.setEnabled(not busy)
 
     def select_dir(self):
         d = QFileDialog.getExistingDirectory(self, "选择下载目录", self.download_dir)
@@ -410,18 +416,75 @@ class MainWindow(QMainWindow):
         self.log("=" * 60)
         self.log("按文件/库名搜索：{}".format(kw))
         self.log("=" * 60)
-        self.run_single(self.apt.apt_file_search_cmd(kw), False, self._on_apt_file_done)
+        # 按当前选择的目标架构搜索（跨架构下载场景），并记录以便失败时降级
+        self._apt_file_with_arch = True
+        dpkg_arch = data_models.dpkg_arch_of(self.arch_combo.currentData())
+        self.run_single(
+            self.apt.apt_file_search_cmd(kw, dpkg_arch), False, self._on_apt_file_done
+        )
 
     def _on_apt_file_done(self, code, output):
-        pkgs = apt_core.AptManager.parse_search_packages(output)
+        # 仅命令成功时才解析输出，避免把错误信息误识别为包名
+        pkgs = apt_core.AptManager.parse_search_packages(output) if code == 0 else []
         if pkgs:
             self._show_search_results(pkgs)
-        else:
-            self.log("apt-file 无结果，回退 apt-cache search ...")
-            self.run_single(self.apt.apt_cache_search_cmd(self._search_kw), False, self._on_search_done)
+            return
 
-    def _on_search_done(self, code, output):
-        self._show_search_results(apt_core.AptManager.parse_search_packages(output))
+        if code != 0:
+            # 老版本 apt-file 不支持 --architecture：降级为不带架构重试一次
+            if getattr(self, "_apt_file_with_arch", False):
+                self._apt_file_with_arch = False
+                self.run_single(
+                    self.apt.apt_file_search_cmd(self._search_kw),
+                    False, self._on_apt_file_done,
+                )
+                return
+            lower = output.lower()
+            if code == 127 or "not found" in lower:
+                self.log("⚠️ 未安装 apt-file，可执行：sudo apt-get install apt-file")
+            elif "cache is empty" in lower or "apt-file update" in lower:
+                self.log("⚠️ apt-file 索引为空，可点击「更新文件索引」或执行：sudo apt-file update")
+            else:
+                self.log("⚠️ apt-file 搜索失败（返回码 {}）".format(code))
+
+        self.log("回退 apt-cache search，尝试提取的关键词 ...")
+        self._fallback_terms = (
+            apt_core.AptManager.extract_search_terms(self._search_kw) or [self._search_kw]
+        )
+        self._fallback_idx = 0
+        self._fallback_pkgs = []
+        self._run_next_fallback()
+
+    def _run_next_fallback(self):
+        if self._fallback_idx >= len(self._fallback_terms):
+            self._show_search_results(self._fallback_pkgs)
+            return
+        term = self._fallback_terms[self._fallback_idx]
+        self.log("尝试关键词：{}".format(term))
+        self.run_single(self.apt.apt_cache_search_cmd(term), False, self._on_fallback_done)
+
+    def _on_fallback_done(self, code, output):
+        if code == 0:
+            for p in apt_core.AptManager.parse_search_packages(output):
+                if p not in self._fallback_pkgs:
+                    self._fallback_pkgs.append(p)
+        self._fallback_idx += 1
+        self._run_next_fallback()
+
+    def update_file_index(self):
+        """一键更新 apt-file 文件索引（需要管理员权限）。"""
+        if self._busy:
+            return
+        self.log("=" * 60)
+        self.log("正在更新 apt-file 文件索引（可能需要几分钟）...")
+        self.log("=" * 60)
+        self.run_single("apt-file update", True, self._on_update_index_done)
+
+    def _on_update_index_done(self, code, output):
+        if code == 0:
+            self.log("\n✅ 文件索引更新完成，可重新搜索")
+        else:
+            self.log("\n❌ 文件索引更新失败，可手动执行 sudo apt-file update")
 
     def _show_search_results(self, pkgs):
         self.search_list.clear()

@@ -47,7 +47,12 @@ class AptManager:
             shlex.quote(pkg), shlex.quote(arch), shlex.quote(version)
         )
 
-    def apt_file_search_cmd(self, keyword):
+    def apt_file_search_cmd(self, keyword, arch=None):
+        """apt-file 搜索命令；arch 非空时按目标架构搜索（跨架构下载场景）。"""
+        if arch:
+            return "apt-file --architecture {} search {}".format(
+                shlex.quote(arch), shlex.quote(keyword)
+            )
         return "apt-file search {}".format(shlex.quote(keyword))
 
     def apt_cache_search_cmd(self, keyword):
@@ -70,20 +75,48 @@ class AptManager:
                     versions.append(ver)
         return versions
 
+    # Debian 包名规范：小写字母/数字开头，仅含小写字母数字 . + -
+    _PKG_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9.+\-]*$")
+
     @staticmethod
     def parse_search_packages(output):
-        """从 apt-file / apt-cache search 输出中提取候选包名。"""
+        """从 apt-file / apt-cache search 输出中提取候选包名。
+
+        严格校验包名格式，避免把错误输出（如 shell 报错）误识别为包名。
+        """
         pkgs = []
         for line in output.splitlines():
             line = line.strip()
             if not line:
                 continue
-            if ": " in line:  # apt-file 格式: "pkgname: /path/to/file"
+            if ": " in line:  # apt-file/dpkg -S 格式: "pkg[:arch]: /path/to/file"
                 pkg = line.split(": ", 1)[0].strip()
             elif " - " in line:  # apt-cache 格式: "pkgname - description"
                 pkg = line.split(" - ", 1)[0].strip()
             else:
                 pkg = line.split()[0].strip()
-            if pkg and pkg not in pkgs:
+            pkg = pkg.split(":", 1)[0].strip()  # 去掉 :arch 架构后缀
+            if pkg and AptManager._PKG_NAME_RE.match(pkg) and pkg not in pkgs:
                 pkgs.append(pkg)
         return pkgs
+
+    @staticmethod
+    def extract_search_terms(keyword):
+        """从库/文件名提取候选搜索关键词（供 apt-cache search 回退使用）。
+
+        例: libBLT.2.5.so.8.6 -> ["BLT.2.5", "BLT"]
+            libssl.so.3       -> ["ssl"]
+        """
+        base = keyword.strip()
+        if base.lower().startswith("lib"):
+            base = base[3:]
+        if ".so" in base:
+            base = base.split(".so", 1)[0]
+        base = base.strip(".-_")
+        terms = []
+        if base:
+            terms.append(base)
+            short = re.split(r"[.\-_]", base)[0]
+            if short and short != base:
+                terms.append(short)
+        return terms
