@@ -53,8 +53,8 @@ python3 -m src.main
 1. 选择目标架构（amd64 / arm64 / loongarch64）
 2. 选择产品线与系统版本（HWE/HWE-PP 仅 amd64；wayland/华为 仅 ARM 特殊架构）
 3. 点击「启用目标架构」，输入管理员密码
-4. 点击「启用选中版本源」，工具写入源文件（含优先级设置）并刷新索引
-5. 输入软件包名称，点击「查询版本」，选择版本后「下载选中版本」
+4. 点击「启用目标版本源」，只需输入一次管理员密码；工具会在同一授权会话中迁移配置、写入源和优先级并刷新索引
+5. 输入软件包名称，点击「查询版本」，选择版本后可下载选中版本或递归依赖；下载期间可点击目录后的「终止下载」强制停止整个下载进程树
 
 ### 按文件名 / 库名搜索
 
@@ -122,8 +122,8 @@ python pack.py            # 生成源码压缩包；Linux 上同时构建 deb
 或使用完整构建脚本：
 
 ```bash
-./build.sh 1.5.1
-sudo dpkg -i dist/kylinpkgtool_1.5.1_all.deb
+./build.sh 1.6
+sudo dpkg -i dist/kylinpkgtool_1.6_all.deb
 ```
 
 程序默认安装到 `/opt/kylinpkgtool`，启动器为 `/usr/bin/kylinpkgtool`。

@@ -142,6 +142,26 @@ class AptManager:
     def apt_update_cmd(self):
         return "apt update"
 
+    @staticmethod
+    def combined_privileged_cmd(commands):
+        """将多条管理员命令封装进同一个 shell，供一次 pkexec 授权执行。
+
+        每条命令都会执行，末尾输出可解析的返回码标记。
+        """
+        statements = ["set +e"]
+        status_vars = []
+        for index, command in enumerate(commands):
+            var = "r{}".format(index)
+            statements.extend([command, "{}=$?".format(var)])
+            status_vars.append("${}".format(var))
+        statements.append(
+            "printf '\\nKYLINPKGTOOL_RESULTS:%s\\n' {}".format(
+                '","'.join(status_vars)
+            )
+        )
+        statements.append("exit 0")
+        return "sh -c {}".format(shlex.quote("; ".join(statements)))
+
     def policy_cmd(self, pkg, arch):
         return "apt-cache policy {}:{}".format(shlex.quote(pkg), shlex.quote(arch))
 

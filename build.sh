@@ -1,7 +1,7 @@
 #!/bin/bash
 # 银河麒麟桌面多架构包下载工具 Debian 打包脚本
 # 用法: ./build.sh [版本号]
-#   默认版本 1.5.1；可传参覆盖，如 ./build.sh 1.5.2
+#   默认版本 1.6；可传参覆盖，如 ./build.sh 1.6.1
 #   默认安装路径 /opt/kylinpkgtool
 set -e
 cd "$(dirname "$0")"
@@ -10,7 +10,7 @@ APP_NAME="kylinpkgtool"
 # Debian 包名按规范强制小写（dpkg 内部 Package 字段）
 DEB_NAME="kylinpkgtool"
 INSTALL_DIR="kylinpkgtool"
-VERSION="${1:-1.5.1}"
+VERSION="${1:-1.6}"
 ARCH="all"
 PKG="${APP_NAME}_${VERSION}_${ARCH}.deb"
 OUT_DIR="dist"
@@ -47,11 +47,11 @@ mkdir -p "$DOC_DIR"
 cat > "$DOC_DIR/changelog" <<EOF
 ${DEB_NAME} (${VERSION}) unstable; urgency=medium
 
-  * 新增“下载依赖项”，递归解析并仅下载选中版本的依赖包
+  * 新增“终止下载”，可强制终止软件包及递归依赖下载进程树
+  * 目标版本源的迁移、写入、优先级配置与索引更新合并为单次授权
+  * 下载终止与关闭窗口时同步回收后台子进程
+  * 支持递归解析并仅下载选中版本的依赖包
   * 工具源与优先级使用专属文件，恢复默认时还原原配置和工具新增架构
-  * 更新应用名称为“银河麒麟桌面多架构包下载工具”
-  * 按更新后的 Excel 重新生成软件源与 apt preferences 数据
-  * 增加多尺寸 hicolor/pixmaps 图标并刷新图标缓存
   * 默认安装路径为 /opt/${INSTALL_DIR}
 
  -- KylinPkgTool Developers <dev@localhost>  $(date -R)

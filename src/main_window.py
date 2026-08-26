@@ -59,6 +59,7 @@ class MainWindow(QMainWindow):
         self.apt = apt_core.AptManager(data_models.SOURCE_FILE, data_models.PREF_FILE)
         self._worker = None
         self._busy = False
+        self._download_active = False
         self._search_kw = ""
 
         self._build_ui()
@@ -101,8 +102,13 @@ class MainWindow(QMainWindow):
         self.dir_edit.setReadOnly(True)
         browse_btn = QPushButton("选择目录")
         browse_btn.clicked.connect(self.select_dir)
+        self.btn_stop_download = QPushButton("终止下载")
+        self.btn_stop_download.setToolTip("强制终止当前软件包或依赖项下载进程")
+        self.btn_stop_download.setEnabled(False)
+        self.btn_stop_download.clicked.connect(self.stop_download)
         dir_row.addWidget(self.dir_edit)
         dir_row.addWidget(browse_btn)
+        dir_row.addWidget(self.btn_stop_download)
         form.addRow("下载目录：", dir_row)
 
         root.addLayout(form)
@@ -241,18 +247,32 @@ class MainWindow(QMainWindow):
         self.search_list.set_placeholder(self.PLACEHOLDER_DEFAULT)
 
     # ===================== 异步执行封装 =====================
-    def run_single(self, cmd, privileged, callback):
-        """执行单条命令，完成后回调 callback(code, output)。"""
+    def run_single(self, cmd, privileged, callback, download=False):
+        """执行单条命令；download=True 时允许用户强制终止整个进程树。"""
         self.set_busy(True)
+        self._download_active = download
+        self.btn_stop_download.setEnabled(download)
         self._worker = CommandWorker(cmd, self.download_dir, privileged, self)
         self._worker.line_ready.connect(self.log)
 
         def _done(code, output):
+            self._download_active = False
+            self.btn_stop_download.setEnabled(False)
             self.set_busy(False)
             callback(code, output)
 
         self._worker.finished.connect(_done)
         self._worker.start()
+
+    def stop_download(self):
+        """强制终止当前软件包或依赖下载进程。"""
+        worker = self._worker
+        if not self._download_active or worker is None or not worker.isRunning():
+            self.log("当前没有正在进行的下载任务")
+            return
+        self.log("\n⚠️ 正在强制终止下载进程，请稍候...")
+        self.btn_stop_download.setEnabled(False)
+        worker.stop()
 
     def run_steps(self, steps, on_done, stop_on_error=True):
         """顺序执行多条命令，完成后回调 on_done(ok, results)。"""
@@ -328,48 +348,55 @@ class MainWindow(QMainWindow):
         content = data_models.build_sources_content(name)
         pref = data_models.build_preferences_content(name)
 
-        steps = [
-            (self.apt.cleanup_legacy_cmd(), True),
-            (self.apt.write_source_cmd(content), True),
+        commands = [
+            self.apt.cleanup_legacy_cmd(),
+            self.apt.write_source_cmd(content),
+            self.apt.write_pref_cmd(pref) if pref else self.apt.clear_pref_cmd(),
+            self.apt.apt_update_cmd(),
         ]
-        if pref:
-            steps.append((self.apt.write_pref_cmd(pref), True))
-        else:
-            steps.append((self.apt.clear_pref_cmd(), True))
-        steps.append((self.apt.apt_update_cmd(), True))
+        combined = self.apt.combined_privileged_cmd(commands)
 
-        # stop_on_error=False：逐步独立判断结果，避免误报成功
-        def done(ok, results):
-            # steps: [旧配置迁移, 写源, 写/清优先级, apt update]
-            if len(results) > 0 and results[0] != 0:
+        def done(code, output):
+            # 四个步骤在同一个 pkexec 会话中执行，因此只需输入一次密码。
+            marker = "KYLINPKGTOOL_RESULTS:"
+            result_line = next(
+                (line for line in reversed(output.splitlines()) if line.startswith(marker)), ""
+            )
+            try:
+                results = [int(value) for value in result_line[len(marker):].split(",")]
+            except ValueError:
+                results = []
+            if code != 0 or len(results) != 4:
+                self.log("❌ 管理员授权取消或源切换命令未完整执行")
+                self.log("=" * 60)
+                return
+            if results[0] != 0:
                 self.log("⚠️ 旧版本工具配置迁移失败，未删除系统原有配置")
-            if len(results) < 2 or results[1] != 0:
+            if results[1] != 0:
                 self.log("❌ 写入工具专属源文件失败，未报告启用成功")
                 self.log("=" * 60)
                 return
             self.log("\n✅ 工具专属源文件已写入：{}".format(data_models.SOURCE_FILE))
 
-            pref_code = results[2] if len(results) > 2 else -1
             if pref:
-                if pref_code == 0:
+                if results[2] == 0:
                     self.log("✅ 工具专属优先级已写入：{}".format(data_models.PREF_FILE))
                 else:
                     self.log("❌ 工具专属优先级写入失败")
-            elif pref_code != 0:
+            elif results[2] != 0:
                 self.log("⚠️ 工具专属优先级清理失败")
 
             self.log("当前工具源：")
             for line in content.splitlines():
                 self.log("  " + line)
 
-            update_code = results[3] if len(results) > 3 else -1
-            if update_code == 0:
+            if results[3] == 0:
                 self.log("\n✅ 【{}】目标版本源已启用，索引刷新完成".format(name))
             else:
                 self.log("\n⚠️ 源文件已写入，但索引刷新未完成，可稍后手动执行 sudo apt update")
             self.log("=" * 60)
 
-        self.run_steps(steps, done, stop_on_error=False)
+        self.run_single(combined, True, done)
 
     # ===================== 3. 恢复系统默认源 =====================
     def restore_default_source(self):
@@ -470,11 +497,15 @@ class MainWindow(QMainWindow):
                     "ls -lh -- *.deb 2>/dev/null || echo '（下载目录中暂无 .deb 文件）'",
                     False, lambda c, o: self.log(o),
                 )
+            elif code == 130:
+                self.log("\n⚠️ 下载已由用户强制终止，未完成文件可能需要手动删除")
             else:
                 self.log("\n❌ 下载失败，请检查版本号与架构是否匹配")
             self.log("=" * 60)
 
-        self.run_single(self.apt.download_cmd(pkg, dpkg_arch, ver), False, done)
+        self.run_single(
+            self.apt.download_cmd(pkg, dpkg_arch, ver), False, done, download=True
+        )
 
     def download_selected_dependencies(self):
         """解析并下载选中版本的递归依赖，不安装主包或依赖包。"""
@@ -527,6 +558,8 @@ class MainWindow(QMainWindow):
             def download_done(download_code, _download_output):
                 if download_code == 0:
                     self.log("✅ 依赖项下载完成（未安装任何软件包）")
+                elif download_code == 130:
+                    self.log("⚠️ 依赖项下载已由用户强制终止，未完成文件可能需要手动删除")
                 else:
                     self.log("❌ 部分或全部依赖项下载失败，请查看上方日志")
                 self.log("=" * 60)
@@ -535,6 +568,7 @@ class MainWindow(QMainWindow):
                 self.apt.dependencies_download_cmd(dependencies, dpkg_arch),
                 False,
                 download_done,
+                download=True,
             )
 
         self.run_single(
@@ -671,6 +705,6 @@ class MainWindow(QMainWindow):
         worker = self._worker
         if worker is not None and worker.isRunning():
             self.log("正在停止后台任务...")
-            worker.terminate()
+            worker.stop()
             worker.wait(3000)
         event.accept()
