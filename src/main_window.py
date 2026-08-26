@@ -515,7 +515,7 @@ class MainWindow(QMainWindow):
                 return
             self.log("✅ 找到 {} 个依赖包：".format(len(dependencies)))
             for dependency in dependencies:
-                self.log("  - {}:{}".format(dependency, dpkg_arch))
+                self.log("  - {}（自动选择 {} 或 all 架构）".format(dependency, dpkg_arch))
             if QMessageBox.question(
                 self,
                 "确认下载",

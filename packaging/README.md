@@ -38,13 +38,13 @@ packaging/
 直接运行根目录的 `build.sh` 一键完成（复制源码、生成图标与 changelog、构建）：
 
 ```bash
-./build.sh 1.5
+./build.sh 1.5.1
 ```
 
 ## 安装与卸载
 
 ```bash
-sudo dpkg -i dist/kylinpkgtool_1.5_all.deb
+sudo dpkg -i dist/kylinpkgtool_1.5.1_all.deb
 sudo apt-get install -f   # 若依赖未满足，自动修复
 
 # 卸载（注意使用 dpkg 内部小写包名）

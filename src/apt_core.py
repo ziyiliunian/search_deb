@@ -167,9 +167,30 @@ class AptManager:
         ).format(target=target_q, version=version_q)
 
     def dependencies_download_cmd(self, packages, arch):
-        """为目标架构批量下载依赖包；仅下载，不安装。"""
-        targets = ["{}:{}".format(pkg, arch) for pkg in packages]
-        return "apt download {}".format(" ".join(shlex.quote(item) for item in targets))
+        """按依赖包的实际架构逐个下载；单包失败不阻断后续包。
+
+        Architecture: all 包不能写成 pkg:arm64，否则 apt 会报告没有候选版本。
+        因此优先探测目标架构候选；不存在时再探测架构无关的普通包名。
+        """
+        packages_q = " ".join(shlex.quote(pkg) for pkg in packages)
+        arch_q = shlex.quote(arch)
+        inner = (
+            "arch={arch}; total=0; failed=0; skipped=0; "
+            "for pkg in {packages}; do total=$((total + 1)); target=; "
+            "if apt-cache show \"$pkg:$arch\" 2>/dev/null | "
+            "grep -Fxq \"Architecture: $arch\"; then target=\"$pkg:$arch\"; "
+            "elif apt-cache show \"$pkg\" 2>/dev/null | "
+            "grep -Fxq 'Architecture: all'; then target=\"$pkg\"; fi; "
+            "if [ -z \"$target\" ]; then "
+            "printf '跳过：%s（目标架构及 all 架构均无候选版本，可能是未选中的备选依赖）\\n' \"$pkg\"; "
+            "skipped=$((skipped + 1)); continue; fi; "
+            "printf '下载：%s\\n' \"$target\"; "
+            "if ! apt download \"$target\"; then failed=$((failed + 1)); fi; done; "
+            "printf '依赖下载汇总：共 %s 个，成功 %s 个，失败 %s 个，跳过 %s 个\\n' "
+            "\"$total\" \"$((total - failed - skipped))\" \"$failed\" \"$skipped\"; "
+            "[ \"$failed\" -eq 0 ]"
+        ).format(arch=arch_q, packages=packages_q)
+        return "bash -c {}".format(shlex.quote(inner))
 
     def apt_file_search_cmd(self, keyword, arch=None):
         """apt-file 搜索命令；arch 非空时按目标架构搜索（跨架构下载场景）。"""
