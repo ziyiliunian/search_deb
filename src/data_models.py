@@ -34,8 +34,9 @@ GROUP_ARCHS = {
     "华为": ["arm-wayland"],
 }
 
-SOURCE_FILE = "/etc/apt/sources.list.d/kylin-tool-selected.list"
-PREF_FILE = "/etc/apt/preferences.d/kylin-tool.pref"
+# 工具只操作以下专属文件，不修改 /etc/apt/sources.list 或系统既有 preferences
+SOURCE_FILE = "/etc/apt/sources.list.d/kylinpkgtool.list"
+PREF_FILE = "/etc/apt/preferences.d/kylinpkgtool.pref"
 
 # 每个版本条目：{group, name, sources: [deb行...], preferences: [Pin行...]}
 VERSION_ENTRIES = [{'group': 'XC',

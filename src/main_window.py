@@ -70,7 +70,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
 
-        tip = QLabel("选架构 → 选产品线/版本 → 启用版本源 → 查询下载（下载无需 sudo）")
+        tip = QLabel("选择架构 -- 选择产品线--选择系统版本--启用目标架构--启用目标版本源")
         tip.setStyleSheet("color: green; font-weight: bold;")
         root.addWidget(tip)
 
@@ -117,15 +117,19 @@ class MainWindow(QMainWindow):
         self.btn_query.clicked.connect(self.query_arch_version)
         self.btn_download = QPushButton("下载选中版本")
         self.btn_download.clicked.connect(self.download_selected_version)
+        self.btn_download_deps = QPushButton("下载依赖项")
+        self.btn_download_deps.setToolTip("只下载选中版本的递归依赖项，不安装软件包")
+        self.btn_download_deps.clicked.connect(self.download_selected_dependencies)
         self.btn_clear = QPushButton("清空")
         self.btn_clear.clicked.connect(self.clear_all)
         self.btn_restore = QPushButton("恢复默认源")
         self.btn_restore.clicked.connect(self.restore_default_source)
         for b in (self.btn_enable_arch, self.btn_enable_source, self.btn_query,
-                  self.btn_download, self.btn_clear, self.btn_restore):
+                  self.btn_download, self.btn_download_deps, self.btn_clear, self.btn_restore):
             btn_row.addWidget(b)
         self._action_buttons = [self.btn_enable_arch, self.btn_enable_source,
-                                self.btn_query, self.btn_download, self.btn_restore]
+                                self.btn_query, self.btn_download, self.btn_download_deps,
+                                self.btn_restore]
         root.addLayout(btn_row)
 
         # 按文件名 / 库名搜索
@@ -222,6 +226,7 @@ class MainWindow(QMainWindow):
         self.btn_search.setEnabled(not busy)
         self.btn_use_pkg.setEnabled(not busy)
         self.btn_update_index.setEnabled(not busy)
+        self.btn_download_deps.setEnabled(not busy)
 
     def select_dir(self):
         d = QFileDialog.getExistingDirectory(self, "选择下载目录", self.download_dir)
@@ -310,7 +315,7 @@ class MainWindow(QMainWindow):
             return
         if QMessageBox.question(
             self, "确认",
-            "将切换为【{}】软件源\n覆盖文件：{}\n自动刷新源索引，是否继续？".format(
+            "将启用【{}】目标版本源\n仅写入工具专属文件：{}\n自动刷新源索引，是否继续？".format(
                 name, data_models.SOURCE_FILE
             ),
         ) != QMessageBox.Yes:
@@ -323,37 +328,43 @@ class MainWindow(QMainWindow):
         content = data_models.build_sources_content(name)
         pref = data_models.build_preferences_content(name)
 
-        steps = [(self.apt.write_source_cmd(content), True)]
+        steps = [
+            (self.apt.cleanup_legacy_cmd(), True),
+            (self.apt.write_source_cmd(content), True),
+        ]
         if pref:
             steps.append((self.apt.write_pref_cmd(pref), True))
         else:
-            steps.append((self.apt.remove_pref_cmd(), True))
+            steps.append((self.apt.clear_pref_cmd(), True))
         steps.append((self.apt.apt_update_cmd(), True))
 
         # stop_on_error=False：逐步独立判断结果，避免误报成功
         def done(ok, results):
-            # steps: [写源, 写/清优先级, apt update]，results 与之一一对应
-            if not results or results[0] != 0:
-                self.log("❌ 写入源文件失败")
+            # steps: [旧配置迁移, 写源, 写/清优先级, apt update]
+            if len(results) > 0 and results[0] != 0:
+                self.log("⚠️ 旧版本工具配置迁移失败，未删除系统原有配置")
+            if len(results) < 2 or results[1] != 0:
+                self.log("❌ 写入工具专属源文件失败，未报告启用成功")
                 self.log("=" * 60)
                 return
-            self.log("\n✅ 源文件已写入")
+            self.log("\n✅ 工具专属源文件已写入：{}".format(data_models.SOURCE_FILE))
 
+            pref_code = results[2] if len(results) > 2 else -1
             if pref:
-                if len(results) > 1 and results[1] == 0:
-                    self.log("✅ 优先级设置已写入 {}".format(data_models.PREF_FILE))
+                if pref_code == 0:
+                    self.log("✅ 工具专属优先级已写入：{}".format(data_models.PREF_FILE))
                 else:
-                    self.log("❌ 优先级设置写入失败")
-            elif len(results) > 1 and results[1] != 0:
-                self.log("⚠️ 清理旧优先级文件失败（可忽略）")
+                    self.log("❌ 工具专属优先级写入失败")
+            elif pref_code != 0:
+                self.log("⚠️ 工具专属优先级清理失败")
 
-            self.log("当前生效源：")
+            self.log("当前工具源：")
             for line in content.splitlines():
                 self.log("  " + line)
 
-            update_code = results[-1] if results else -1
+            update_code = results[3] if len(results) > 3 else -1
             if update_code == 0:
-                self.log("\n✅ 【{}】源已启用，索引刷新完成".format(name))
+                self.log("\n✅ 【{}】目标版本源已启用，索引刷新完成".format(name))
             else:
                 self.log("\n⚠️ 源文件已写入，但索引刷新未完成，可稍后手动执行 sudo apt update")
             self.log("=" * 60)
@@ -365,7 +376,7 @@ class MainWindow(QMainWindow):
         if self._busy:
             return
         if QMessageBox.question(
-            self, "确认", "将删除工具生成的源文件与优先级文件，恢复系统默认源状态，是否继续？"
+            self, "确认", "将恢复工具首次操作前的源、优先级和架构状态，\n不会修改系统其他配置，是否继续？"
         ) != QMessageBox.Yes:
             return
 
@@ -374,14 +385,26 @@ class MainWindow(QMainWindow):
         self.log("=" * 60)
 
         steps = [
-            (self.apt.remove_source_cmd(), True),
-            (self.apt.remove_pref_cmd(), True),
+            (self.apt.restore_source_cmd(), True),
+            (self.apt.restore_pref_cmd(), True),
+            (self.apt.restore_legacy_cmd(), True),
+            (self.apt.restore_architectures_cmd(), True),
             (self.apt.apt_update_cmd(), True),
         ]
 
         def done(ok, results):
-            self.log("✅ 已删除工具生成的源文件与优先级文件")
-            self.log("\n✅ 已恢复系统默认源状态")
+            if results and results[0] != 0:
+                self.log("⚠️ 工具源恢复失败，未确认默认源状态")
+            if len(results) > 1 and results[1] != 0:
+                self.log("⚠️ 工具优先级恢复失败，未确认默认优先级状态")
+            if len(results) > 2 and results[2] != 0:
+                self.log("⚠️ 旧版本工具配置清理/恢复失败")
+            if len(results) > 3 and results[3] != 0:
+                self.log("⚠️ 工具新增架构未能全部撤销（仍有包依赖时会保留）")
+            if len(results) > 4 and results[4] == 0:
+                self.log("✅ 默认源与默认优先级已恢复，索引已刷新")
+            else:
+                self.log("⚠️ 默认配置已尽力恢复，但 apt update 未成功")
             self.log("=" * 60)
 
         self.run_steps(steps, done, stop_on_error=False)
@@ -452,6 +475,73 @@ class MainWindow(QMainWindow):
             self.log("=" * 60)
 
         self.run_single(self.apt.download_cmd(pkg, dpkg_arch, ver), False, done)
+
+    def download_selected_dependencies(self):
+        """解析并下载选中版本的递归依赖，不安装主包或依赖包。"""
+        if self._busy:
+            return
+        pkg = self.pkg_edit.text().strip()
+        dpkg_arch = data_models.dpkg_arch_of(self.arch_combo.currentData())
+        ver = self.pkg_version_combo.currentText().strip()
+        if not all([pkg, dpkg_arch, ver]):
+            QMessageBox.warning(self, "提示", "请先查询并选择版本")
+            return
+
+        if QMessageBox.question(
+            self,
+            "确认下载依赖项",
+            "将查询【{}:{}={}】的递归依赖并下载到当前目录，\n只下载不安装，是否继续？".format(
+                pkg, dpkg_arch, ver
+            ),
+        ) != QMessageBox.Yes:
+            return
+
+        self.log("\n" + "=" * 60)
+        self.log("正在解析 {}:{}={} 的递归依赖...".format(pkg, dpkg_arch, ver))
+        self.log("依赖包只下载到：{}".format(self.download_dir))
+        self.log("=" * 60)
+
+        def dependency_done(code, output):
+            if code != 0:
+                self.log("❌ 依赖解析失败，请确认软件源索引已更新")
+                self.log("=" * 60)
+                return
+            dependencies = apt_core.AptManager.parse_dependencies(
+                output, pkg, dpkg_arch
+            )
+            if not dependencies:
+                self.log("✅ 未发现需要单独下载的依赖项")
+                self.log("=" * 60)
+                return
+            self.log("✅ 找到 {} 个依赖包：".format(len(dependencies)))
+            for dependency in dependencies:
+                self.log("  - {}:{}".format(dependency, dpkg_arch))
+            if QMessageBox.question(
+                self,
+                "确认下载",
+                "已找到 {} 个依赖包，是否开始下载？".format(len(dependencies)),
+            ) != QMessageBox.Yes:
+                self.log("已取消依赖下载")
+                return
+
+            def download_done(download_code, _download_output):
+                if download_code == 0:
+                    self.log("✅ 依赖项下载完成（未安装任何软件包）")
+                else:
+                    self.log("❌ 部分或全部依赖项下载失败，请查看上方日志")
+                self.log("=" * 60)
+
+            self.run_single(
+                self.apt.dependencies_download_cmd(dependencies, dpkg_arch),
+                False,
+                download_done,
+            )
+
+        self.run_single(
+            self.apt.dependency_query_cmd(pkg, dpkg_arch, ver),
+            False,
+            dependency_done,
+        )
 
     # ===================== 6. 按文件名 / 库名搜索 =====================
     def search_files(self):

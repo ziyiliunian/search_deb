@@ -1,4 +1,4 @@
-# KylinPkgTool - 银河麒麟多架构包下载工具
+# kylinpkgtool - 银河麒麟桌面多架构包下载工具
 
 基于 PyQt5 的图形化工具，在银河麒麟 V10 系统上按目标架构与产线版本切换软件源，查询可用版本并下载 `.deb` 软件包；支持按文件名 / 库名反查所属软件包。
 
@@ -10,7 +10,7 @@
 - 一键通过 `dpkg --add-architecture` 启用目标架构
 - 内置 40 个产线版本，按 8 个产品线分组：XC、HWE、HWE-PP、wayland（990 / 9006c / M900 / 9000C）、华为定制；其中 wayland / 华为 归入 ARM 特殊架构
 - 切换版本源后自动刷新 `apt update` 索引
-- 部分版本自动写入 `/etc/apt/preferences.d/kylin-tool.pref` 优先级设置
+- 部分版本自动写入工具专属 `/etc/apt/preferences.d/kylinpkgtool.pref` 优先级设置，不修改系统原有配置
 
 ### 查询与下载
 
@@ -122,8 +122,8 @@ python pack.py            # 生成源码压缩包；Linux 上同时构建 deb
 或使用完整构建脚本：
 
 ```bash
-./build.sh 1.4
-sudo dpkg -i dist/kylinpkgtool_1.4_all.deb
+./build.sh 1.5
+sudo dpkg -i dist/kylinpkgtool_1.5_all.deb
 ```
 
 程序默认安装到 `/opt/kylinpkgtool`，启动器为 `/usr/bin/kylinpkgtool`。

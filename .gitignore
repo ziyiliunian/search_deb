@@ -1,7 +1,10 @@
 __pycache__/
 *.py[cod]
 build/
-dist/
+# dist 由项目维护，保留最近两个版本的 deb 产物
 *.deb
 *.zip
+!dist/
+!dist/*.deb
+.~*
 .codebuddy/

@@ -17,7 +17,9 @@ packaging/
 │       ├── applications/
 │       │   └── kylinpkgtool.desktop       # 桌面快捷方式
 │       ├── doc/kylinpkgtool/
-│       │   └── copyright                  # 版权信息（changelog.gz 由 build.sh 生成）
+│       │   ├── copyright                  # 版权信息
+│       │   ├── CHANGELOG.md                # 完整版本变更记录
+│       │   └── changelog.gz                # Debian 变更记录（由 build.sh 生成）
 │       └── icons/hicolor/256x256/apps/
 │           └── kylinpkgtool.png           # 应用图标
 └── README.md          # 本文件
@@ -36,15 +38,19 @@ packaging/
 直接运行根目录的 `build.sh` 一键完成（复制源码、生成图标与 changelog、构建）：
 
 ```bash
-./build.sh 1.2
+./build.sh 1.5
 ```
 
 ## 安装与卸载
 
 ```bash
-sudo dpkg -i dist/kylinpkgtool_1.2_all.deb
+sudo dpkg -i dist/kylinpkgtool_1.5_all.deb
 sudo apt-get install -f   # 若依赖未满足，自动修复
 
 # 卸载（注意使用 dpkg 内部小写包名）
 sudo dpkg -r kylinpkgtool
 ```
+
+应用名称：银河麒麟桌面多架构包下载工具
+
+工具运行期间只维护 `/etc/apt/sources.list.d/kylinpkgtool.list`、`/etc/apt/preferences.d/kylinpkgtool.pref` 及 `/var/lib/kylinpkgtool` 状态目录；恢复默认源时会还原首次操作前的配置，不覆盖系统其他源和优先级文件。
