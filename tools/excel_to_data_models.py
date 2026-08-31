@@ -6,6 +6,7 @@
 """
 
 import argparse
+from collections import Counter
 import pprint
 import re
 import zipfile
@@ -110,14 +111,19 @@ def _extract_lines(cell_text):
     for raw_line in (cell_text or "").splitlines():
         line = raw_line.strip()
         if re.match(r"^deb(?:-src)?\s+", line):
-            sources.append(line)
+            sources.append(re.sub(r"\s+", " ", line))
         elif line.startswith("Package:"):
             # apt preferences 的多个记录必须用空行分隔；Excel 未留空行时自动补齐
             if preferences and preferences[-1] != "":
                 preferences.append("")
             preferences.append(line)
-        elif line.startswith(("Pin:", "Pin-Priority:")):
-            preferences.append(line)
+        elif line.startswith("Pin:"):
+            preferences.append(re.sub(r"(\ba=)\s+", r"\1", line))
+        elif line.startswith("Pin-Priority:"):
+            priority = line.split(":", 1)[1].strip()
+            if not priority.isdigit():
+                raise ValueError("无效的 Pin-Priority：%s" % line)
+            preferences.append("Pin-Priority: %s" % priority)
         elif not line and preferences and preferences[-1] != "":
             preferences.append("")
     while preferences and preferences[-1] == "":
@@ -165,7 +171,7 @@ def parse_entries(excel_path, sheet_name="外网源"):
         raise ValueError("未从工作表 %s 读取到任何版本条目" % sheet_name)
 
     names = [entry["name"] for entry in entries]
-    duplicates = sorted({name for name in names if names.count(name) > 1})
+    duplicates = sorted(name for name, count in Counter(names).items() if count > 1)
     if duplicates:
         raise ValueError("Excel 中存在重复版本名：%s" % ", ".join(duplicates))
     for entry in entries:

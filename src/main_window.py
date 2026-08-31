@@ -135,7 +135,7 @@ class MainWindow(QMainWindow):
             btn_row.addWidget(b)
         self._action_buttons = [self.btn_enable_arch, self.btn_enable_source,
                                 self.btn_query, self.btn_download, self.btn_download_deps,
-                                self.btn_restore]
+                                self.btn_clear, self.btn_restore]
         root.addLayout(btn_row)
 
         # 按文件名 / 库名搜索
@@ -448,6 +448,11 @@ class MainWindow(QMainWindow):
         if not pkg:
             QMessageBox.warning(self, "提示", "请输入包名")
             return
+        if not apt_core.AptManager._PKG_NAME_RE.fullmatch(pkg):
+            QMessageBox.warning(
+                self, "提示", "包名格式无效，仅支持小写字母、数字、点、加号和连字符"
+            )
+            return
 
         self.log_box.clear()
         self.pkg_version_combo.clear()
@@ -690,6 +695,8 @@ class MainWindow(QMainWindow):
         self.log("选中后点击「使用选中包查询版本」")
 
     def use_selected_package(self):
+        if self._busy:
+            return
         items = self.search_list.selectedItems()
         if not items:
             QMessageBox.warning(self, "提示", "请先在搜索结果中选择一个包")
@@ -706,5 +713,8 @@ class MainWindow(QMainWindow):
         if worker is not None and worker.isRunning():
             self.log("正在停止后台任务...")
             worker.stop()
-            worker.wait(3000)
+            if not worker.wait(5000):
+                self.log("后台任务尚未停止，请稍后再次关闭窗口")
+                event.ignore()
+                return
         event.accept()

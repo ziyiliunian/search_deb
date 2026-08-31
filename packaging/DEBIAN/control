@@ -1,5 +1,5 @@
 Package: kylinpkgtool
-Version: 1.6
+Version: 1.6.1
 Section: utils
 Priority: optional
 Architecture: all

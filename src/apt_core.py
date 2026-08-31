@@ -257,6 +257,8 @@ class AptManager:
             line = raw_line.strip()
             if not line:
                 continue
+            # 备选依赖在 apt-cache 输出中以竖线开头，如“|Depends: pkg”。
+            line = line.lstrip("|").strip()
             if line.startswith(ignored_labels):
                 continue
             for label in dependency_labels:
@@ -265,6 +267,8 @@ class AptManager:
                     break
             # apt-cache 可能输出“候选包 | 备选包”；选择第一个实际包名。
             line = line.split(" | ", 1)[0].strip()
+            # 兼容部分定制 apt 输出的版本约束，如 libssl (>= 1.1)。
+            line = re.sub(r"\s+\([^)]*\)\s*$", "", line)
             if line.startswith("<") or " " in line:
                 continue
             if ":" in line:

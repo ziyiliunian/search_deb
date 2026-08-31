@@ -71,7 +71,7 @@ def build_deb(version):
     if shutil.which("dpkg-deb") is None:
         print("  跳过 deb 构建（未找到 dpkg-deb）。可在麒麟系统上运行 ./build.sh 构建。")
         return
-    return run("bash build.sh {}".format(version), cwd=HERE)
+    return subprocess.call(["bash", "build.sh", version], cwd=HERE)
 
 
 def main():
