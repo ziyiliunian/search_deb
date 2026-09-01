@@ -170,8 +170,8 @@ class AptManager:
             shlex.quote(pkg), shlex.quote(arch), shlex.quote(version)
         )
 
-    def dependency_query_cmd(self, pkg, arch, version):
-        """查询选中包的递归强依赖与预依赖，不包含 recommends/suggests。
+    def dependency_query_cmd(self, pkg, arch, version, recursive=True):
+        """查询选中包的强依赖与预依赖，可选择是否递归展开。
 
         apt-cache depends 在部分银河麒麟版本不接受 pkg=version，因此先用 policy
         确认所选版本仍存在，再按 pkg:arch 查询当前源配置下的依赖关系。
@@ -179,12 +179,13 @@ class AptManager:
         target = "{}:{}".format(pkg, arch)
         version_q = shlex.quote(version)
         target_q = shlex.quote(target)
+        recurse_option = "--recurse " if recursive else ""
         return (
             "apt-cache policy {target} | "
             "grep -F -- {version} >/dev/null && "
-            "apt-cache depends --recurse --important --no-recommends --no-suggests "
+            "apt-cache depends {recurse}--important --no-recommends --no-suggests "
             "--no-conflicts --no-breaks --no-replaces --no-enhances {target}"
-        ).format(target=target_q, version=version_q)
+        ).format(target=target_q, version=version_q, recurse=recurse_option)
 
     def dependencies_download_cmd(self, packages, arch):
         """按依赖包的实际架构逐个下载；单包失败不阻断后续包。

@@ -8,8 +8,9 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QPainter
 from PyQt5.QtWidgets import (
     QAbstractItemView, QComboBox, QFileDialog, QFormLayout, QGroupBox,
-    QHBoxLayout, QLabel, QLineEdit, QListWidget, QMainWindow, QMessageBox,
-    QPlainTextEdit, QPushButton, QSizePolicy, QSplitter, QVBoxLayout, QWidget,
+    QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget, QMainWindow,
+    QMessageBox, QPlainTextEdit, QPushButton, QSizePolicy, QSplitter,
+    QVBoxLayout, QWidget,
 )
 
 from . import APP_TITLE, apt_core, data_models
@@ -41,6 +42,7 @@ class SearchListWidget(QListWidget):
 
 
 class MainWindow(QMainWindow):
+    CUSTOM_VERSION = "自定义版本"
     # 搜索结果框空态背景文案
     PLACEHOLDER_DEFAULT = "输入文件名或库名后点击「搜索」"
     PLACEHOLDER_SEARCHING = "正在搜索 ..."
@@ -61,6 +63,7 @@ class MainWindow(QMainWindow):
         self._busy = False
         self._download_active = False
         self._search_kw = ""
+        self._custom_source = ""
 
         self._build_ui()
         self._update_groups()
@@ -88,6 +91,7 @@ class MainWindow(QMainWindow):
         form.addRow("产品线：", self.group_combo)
 
         self.version_combo = QComboBox()
+        self.version_combo.currentTextChanged.connect(self._on_version_changed)
         form.addRow("系统版本：", self.version_combo)
 
         self.pkg_edit = QLineEdit()
@@ -206,6 +210,7 @@ class MainWindow(QMainWindow):
         current = self.version_combo.currentText()
 
         versions = [v for v in data_models.versions_of_group(group) if v in avail] if group else []
+        versions.append(self.CUSTOM_VERSION)
 
         self.version_combo.blockSignals(True)
         self.version_combo.clear()
@@ -214,6 +219,38 @@ class MainWindow(QMainWindow):
         if idx >= 0:
             self.version_combo.setCurrentIndex(idx)
         self.version_combo.blockSignals(False)
+
+    @staticmethod
+    def _normalize_custom_source(text):
+        lines = []
+        for raw_line in text.splitlines():
+            line = " ".join(raw_line.strip().split())
+            if not line or line.startswith("#"):
+                continue
+            if not line.startswith(("deb ", "deb-src ")):
+                return ""
+            lines.append(line)
+        return "\n".join(lines)
+
+    def _prompt_custom_source(self):
+        text, accepted = QInputDialog.getMultiLineText(
+            self,
+            "输入自定义源",
+            "请输入自定义软件源，每行一条（支持 deb 和 deb-src）：",
+            self._custom_source,
+        )
+        if not accepted:
+            return False
+        source = self._normalize_custom_source(text)
+        if not source:
+            QMessageBox.warning(self, "提示", "请输入有效的 deb 或 deb-src 软件源")
+            return False
+        self._custom_source = source
+        return True
+
+    def _on_version_changed(self, name):
+        if name == self.CUSTOM_VERSION:
+            self._prompt_custom_source()
 
     def _on_arch_changed(self, index):
         self._update_groups()
@@ -330,8 +367,11 @@ class MainWindow(QMainWindow):
         if self._busy:
             return
         name = self.version_combo.currentText()
-        if not name or not data_models.get_entry(name):
+        is_custom = name == self.CUSTOM_VERSION
+        if not name or (not is_custom and not data_models.get_entry(name)):
             QMessageBox.warning(self, "提示", "请选择有效的系统版本")
+            return
+        if is_custom and not self._custom_source and not self._prompt_custom_source():
             return
         if QMessageBox.question(
             self, "确认",
@@ -345,8 +385,8 @@ class MainWindow(QMainWindow):
         self.log("正在切换到【{}】软件源...".format(name))
         self.log("=" * 60)
 
-        content = data_models.build_sources_content(name)
-        pref = data_models.build_preferences_content(name)
+        content = self._custom_source if is_custom else data_models.build_sources_content(name)
+        pref = "" if is_custom else data_models.build_preferences_content(name)
 
         commands = [
             self.apt.cleanup_legacy_cmd(),
@@ -513,7 +553,7 @@ class MainWindow(QMainWindow):
         )
 
     def download_selected_dependencies(self):
-        """解析并下载选中版本的递归依赖，不安装主包或依赖包。"""
+        """解析并下载选中版本的强依赖与预依赖，不安装软件包。"""
         if self._busy:
             return
         pkg = self.pkg_edit.text().strip()
@@ -524,8 +564,7 @@ class MainWindow(QMainWindow):
             return
 
         if QMessageBox.question(
-            self,
-            "确认下载依赖项",
+            self, "确认下载依赖项",
             "将查询【{}:{}={}】的递归依赖并下载到当前目录，\n只下载不安装，是否继续？".format(
                 pkg, dpkg_arch, ver
             ),
@@ -537,24 +576,16 @@ class MainWindow(QMainWindow):
         self.log("依赖包只下载到：{}".format(self.download_dir))
         self.log("=" * 60)
 
-        def dependency_done(code, output):
-            if code != 0:
-                self.log("❌ 依赖解析失败，请确认软件源索引已更新")
-                self.log("=" * 60)
-                return
-            dependencies = apt_core.AptManager.parse_dependencies(
-                output, pkg, dpkg_arch
-            )
+        def start_download(dependencies, mode):
             if not dependencies:
                 self.log("✅ 未发现需要单独下载的依赖项")
                 self.log("=" * 60)
                 return
-            self.log("✅ 找到 {} 个依赖包：".format(len(dependencies)))
+            self.log("✅ {}找到 {} 个依赖包：".format(mode, len(dependencies)))
             for dependency in dependencies:
                 self.log("  - {}（自动选择 {} 或 all 架构）".format(dependency, dpkg_arch))
             if QMessageBox.question(
-                self,
-                "确认下载",
+                self, "确认下载",
                 "已找到 {} 个依赖包，是否开始下载？".format(len(dependencies)),
             ) != QMessageBox.Yes:
                 self.log("已取消依赖下载")
@@ -571,15 +602,49 @@ class MainWindow(QMainWindow):
 
             self.run_single(
                 self.apt.dependencies_download_cmd(dependencies, dpkg_arch),
-                False,
-                download_done,
-                download=True,
+                False, download_done, download=True,
             )
 
+        def dependency_done(code, output):
+            if code != 0:
+                self.log("❌ 依赖解析失败，请确认软件源索引已更新")
+                self.log("=" * 60)
+                return
+            dependencies = apt_core.AptManager.parse_dependencies(output, pkg, dpkg_arch)
+            if len(dependencies) > 50:
+                box = QMessageBox(self)
+                box.setWindowTitle("选择下载方式")
+                box.setText("基础依赖较多，请选择下载方式")
+                all_button = box.addButton("下载全部依赖", QMessageBox.AcceptRole)
+                direct_button = box.addButton("只下载直接依赖", QMessageBox.ActionRole)
+                box.addButton("取消", QMessageBox.RejectRole)
+                box.exec_()
+                if box.clickedButton() == direct_button:
+                    self.log("依赖超过 50 个，重新解析直接依赖...")
+
+                    def direct_done(direct_code, direct_output):
+                        if direct_code != 0:
+                            self.log("❌ 直接依赖解析失败，请确认软件源索引已更新")
+                            self.log("=" * 60)
+                            return
+                        direct_dependencies = apt_core.AptManager.parse_dependencies(
+                            direct_output, pkg, dpkg_arch
+                        )
+                        start_download(direct_dependencies, "直接依赖")
+
+                    self.run_single(
+                        self.apt.dependency_query_cmd(pkg, dpkg_arch, ver, recursive=False),
+                        False, direct_done,
+                    )
+                    return
+                if box.clickedButton() != all_button:
+                    self.log("已取消依赖下载")
+                    return
+            start_download(dependencies, "递归依赖")
+
         self.run_single(
-            self.apt.dependency_query_cmd(pkg, dpkg_arch, ver),
-            False,
-            dependency_done,
+            self.apt.dependency_query_cmd(pkg, dpkg_arch, ver, recursive=True),
+            False, dependency_done,
         )
 
     # ===================== 6. 按文件名 / 库名搜索 =====================

@@ -122,8 +122,8 @@ python pack.py            # 生成源码压缩包；Linux 上同时构建 deb
 或使用完整构建脚本：
 
 ```bash
-./build.sh 1.6.2
-sudo dpkg -i dist/kylinpkgtool_1.6.2_all.deb
+./build.sh 1.6.3
+sudo dpkg -i dist/kylinpkgtool_1.6.3_all.deb
 ```
 
 程序默认安装到 `/opt/kylinpkgtool`，启动器为 `/usr/bin/kylinpkgtool`。
