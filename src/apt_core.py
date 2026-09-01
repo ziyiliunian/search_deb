@@ -228,7 +228,8 @@ class AptManager:
     def parse_versions(output):
         """从 apt-cache policy 输出中解析可用版本号。"""
         versions = []
-        pattern = re.compile(r"^(\d[\w.\-:+~]+)\s+\d+")
+        # 已安装且为候选版本时，apt-cache policy 会在版本行前添加“***”。
+        pattern = re.compile(r"^(?:\*{3}\s+)?(\d[\w.\-:+~]+)\s+\d+")
         for line in output.splitlines():
             line = line.strip()
             match = pattern.match(line)

@@ -1,7 +1,7 @@
 #!/bin/bash
 # 银河麒麟桌面多架构包下载工具 Debian 打包脚本
 # 用法: ./build.sh [版本号]
-#   默认版本 1.6.1；可传参覆盖，如 ./build.sh 1.6.2
+#   默认版本 1.6.2；可传参覆盖，如 ./build.sh 1.6.3
 #   默认安装路径 /opt/kylinpkgtool
 set -e
 cd "$(dirname "$0")"
@@ -10,7 +10,7 @@ APP_NAME="kylinpkgtool"
 # Debian 包名按规范强制小写（dpkg 内部 Package 字段）
 DEB_NAME="kylinpkgtool"
 INSTALL_DIR="kylinpkgtool"
-VERSION="${1:-1.6.1}"
+VERSION="${1:-1.6.2}"
 ARCH="all"
 PKG="${APP_NAME}_${VERSION}_${ARCH}.deb"
 OUT_DIR="dist"
