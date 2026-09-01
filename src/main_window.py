@@ -4,6 +4,8 @@
 通过 data_models 读取软件源配置、apt_core 构建命令、runner 异步执行，
 支持按架构 + 产品线 + 版本选择，以及按文件名 / 库名搜索软件包。
 """
+import re
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QPainter
 from PyQt5.QtWidgets import (
@@ -229,6 +231,11 @@ class MainWindow(QMainWindow):
                 continue
             if not line.startswith(("deb ", "deb-src ")):
                 return ""
+            lowered = line.lower()
+            if re.search(r"\[(?:[^]]*\s)?(?:trusted|allow-insecure|allow-weak)\s*=\s*yes(?:\s|\])", lowered):
+                return ""
+            if re.search(r"\S+://[^/\s]+:[^@\s]+@", line):
+                return ""
             lines.append(line)
         return "\n".join(lines)
 
@@ -249,8 +256,19 @@ class MainWindow(QMainWindow):
         return True
 
     def _on_version_changed(self, name):
-        if name == self.CUSTOM_VERSION:
-            self._prompt_custom_source()
+        if name != self.CUSTOM_VERSION:
+            if name:
+                self._previous_version = name
+            return
+        if not self._prompt_custom_source():
+            self.version_combo.blockSignals(True)
+            index = self.version_combo.findText(self._previous_version)
+            if index < 0 and self.version_combo.count() > 1:
+                index = 0
+            if index >= 0:
+                self.version_combo.setCurrentIndex(index)
+                self._previous_version = self.version_combo.currentText()
+            self.version_combo.blockSignals(False)
 
     def _on_arch_changed(self, index):
         self._update_groups()
